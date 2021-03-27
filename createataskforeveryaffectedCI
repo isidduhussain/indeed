@@ -1,0 +1,58 @@
+(function executeRule(current, previous /*null when async*/ ) {
+
+    var affectedci = new GlideRecord('task_ci');
+    affectedci.addQuery('task', current.sys_id);
+    affectedci.query();
+
+    var affecteddata = [];
+
+    while (affectedci.next()) {
+        affecteddata.push(createobject(affectedci.ci_item.support_group, affectedci.ci_item, affectedci.ci_item.name));
+    }
+    var groupedSupportGroup = groupArrayOfObjects(affecteddata, "supportgroup");
+    var supportgroups = Object.keys(groupedSupportGroup);
+
+
+    for (var index = 0, len = supportgroups.length; index < len; index++) {
+        var ci = '';
+        var shortdesc = '';
+        for (var sindex = 0, slen = groupedSupportGroup[supportgroups[index]].length; sindex < slen; sindex++) {
+            var row = groupedSupportGroup[supportgroups[index]][sindex];
+            if (sindex == 0) {
+                ci = row.ci;
+            } else {
+                shortdesc += sindex +'_' + row.ciname + '\n';
+            }
+        }
+        if (groupedSupportGroup[supportgroups[index]].length == 1) {
+            shortdesc = groupedSupportGroup[supportgroups[index]][0].ciname;
+        }
+        createtask(ci, shortdesc,current);
+    }
+
+	
+	function createtask(ci,shortdesc,change){
+		var tasknew = new GlideRecord('change_task');
+		tasknew.initialize();
+		tasknew.change_request = change.sys_id;
+		tasknew.cmdb_ci = ci;
+		tasknew.short_description = shortdesc;
+		tasknew.insert();
+	}
+	
+    function createobject(supportgroup, ci, ciname) {
+        return {
+            supportgroup: supportgroup,
+            ci: ci.sys_id,
+            ciname: ciname
+        };
+    }
+
+    function groupArrayOfObjects(list, key) {
+        return list.reduce(function(rv, x) {
+            (rv[x[key]] = rv[x[key]] || []).push(x);
+            return rv;
+        }, {});
+    }
+
+})(current, previous);
